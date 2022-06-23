@@ -10,10 +10,10 @@
 __declspec(noinline) void print_fn()
 {
     printf(
-        FORCE_VOLATILE_STRING("funko [%s][%s][%s]\n"),
-        FORCE_VOLATILE_STRING(__DATE__),
-        FORCE_VOLATILE_STRING(__TIME__),
-        FORCE_VOLATILE_STRING("Big hiding"));
+        STANDARD_CRYPT("funko [%s][%s][%s]\n"),
+        STANDARD_CRYPT(__DATE__),
+        STANDARD_CRYPT(__TIME__),
+        STANDARD_CRYPT("Big hiding"));
 }
 
 int main()
