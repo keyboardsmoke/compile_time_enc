@@ -17,6 +17,9 @@
 // E -> B
 // F -> A
 
+// Fun fact, if you embed this in the routine that uses it, instead of global scope, it gets output every usage...
+// Wasteful, but noisy
+
 uint8_t obfuscate::impl::CaesarImpl::DecodeTable[256] =
 {
 	0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, // 00

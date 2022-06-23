@@ -327,13 +327,13 @@ namespace obfuscate
 		EncryptedString(const EncryptedDataContainer<N>& data, uint32_t key) noexcept :
 			m_data(data), m_key(key) {}
 
-		~EncryptedString()
+		__forceinline ~EncryptedString()
 		{
-			volatile auto x = [&]() -> bool {
-				memset(m_data.data(), 0, m_data.size()); // ???
-
-				return true;
-			}();
+			volatile char* data = m_data.data();
+			volatile std::size_t size = m_data.size();
+			// Doesn't seem to be firing no matter what I do...
+			for (std::size_t i = 0; i < size; ++i)
+				data[i] = static_cast<char>(constant::hash::FNV1A<char, N>::hash(__TIME__));
 		}
 
 		// I would cache the result of this, but this is entirely stack driven
@@ -356,14 +356,65 @@ namespace obfuscate
 		EncryptedDataContainer<N> m_data;
 	};
 
-	template<std::size_t VArrayItemsCount> constexpr auto String(char const (&sz_text)[VArrayItemsCount])
+	enum class StringCryptMode
 	{
-		using sp = std::make_index_sequence < VArrayItemsCount - std::size_t{ 1 } > ;
-		auto h = constant::hash::FNV1A<uint32_t, VArrayItemsCount>::hash(sz_text, VArrayItemsCount - std::size_t{ 1 });
-		auto k = constant::time::Get<uint32_t>();
-		auto x = impl::CaesarImpl::Generate<VArrayItemsCount>(sp(), sz_text, h ^ k);
-		return EncryptedString<impl::CaesarImpl, VArrayItemsCount>(x, h ^ k);
-	}
+		Xor = 0,
+		SubAdd = 1,
+		Caesar = 2,
+
+		Last,
+		None = 0xff
+	};
+
+	template<std::size_t VArrayItemsCount, typename CipherT>
+	class StringImpl
+	{
+	public:
+		static constexpr auto Generate(char const (&sz_text)[VArrayItemsCount])
+		{
+			using sp = std::make_index_sequence < VArrayItemsCount - std::size_t{ 1 } > ;
+			auto h = constant::hash::FNV1A<uint32_t, VArrayItemsCount>::hash(sz_text, VArrayItemsCount - std::size_t{ 1 });
+			auto k = constant::time::Get<uint32_t>();
+			auto x = CipherT::Generate<VArrayItemsCount>(sp(), sz_text, h ^ k);
+			return EncryptedString<CipherT, VArrayItemsCount>(x, h ^ k);
+		}
+	};
+
+	template<std::size_t Mode>
+	class StringModeImpl;
+
+	template<>
+	class StringModeImpl<static_cast<std::size_t>(StringCryptMode::Xor)>
+	{
+	public:
+		template<std::size_t VArrayItemsCount>
+		static constexpr auto Generate(char const (&sz_text)[VArrayItemsCount])
+		{
+			return StringImpl<VArrayItemsCount, impl::XorImpl>::Generate(sz_text);
+		}
+	};
+
+	template<>
+	class StringModeImpl<static_cast<std::size_t>(StringCryptMode::SubAdd)>
+	{
+	public:
+		template<std::size_t VArrayItemsCount>
+		static constexpr auto Generate(char const (&sz_text)[VArrayItemsCount])
+		{
+			return StringImpl<VArrayItemsCount, impl::SubAddImpl>::Generate(sz_text);
+		}
+	};
+
+	template<>
+	class StringModeImpl<static_cast<std::size_t>(StringCryptMode::Caesar)>
+	{
+	public:
+		template<std::size_t VArrayItemsCount>
+		static constexpr auto Generate(char const (&sz_text)[VArrayItemsCount])
+		{
+			return StringImpl<VArrayItemsCount, impl::CaesarImpl>::Generate(sz_text);
+		}
+	};
 }
 
 #pragma optimize( "", on )
